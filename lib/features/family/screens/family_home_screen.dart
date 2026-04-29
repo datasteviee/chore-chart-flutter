@@ -6,9 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:mix/mix.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/network_status.dart';
 import '../../../core/theme/chore_member_colors.dart';
 import '../../../core/theme/chore_mix_spacing.dart';
 import '../../../core/theme/chore_mix_tokens.dart';
+import '../../../data/gamification_service.dart';
+import '../../../data/local/assignment_cache.dart';
 import '../../../widgets/design_system/assignment_card.dart';
 import '../family_context.dart';
 import '../../tasks/assignment_status.dart';
@@ -25,6 +28,7 @@ class _FamilyHomeScreenState extends ConsumerState<FamilyHomeScreen> {
   Map<String, dynamic>? _family;
   List<Map<String, dynamic>> _assignments = [];
   String? _error;
+  bool _fromCache = false;
 
   @override
   void initState() {
@@ -36,6 +40,7 @@ class _FamilyHomeScreenState extends ConsumerState<FamilyHomeScreen> {
     setState(() {
       _loading = true;
       _error = null;
+      _fromCache = false;
     });
     try {
       final ctx = await FamilyContext.loadCurrent();
@@ -52,31 +57,53 @@ class _FamilyHomeScreenState extends ConsumerState<FamilyHomeScreen> {
       final end = start.add(const Duration(days: 14));
       String dk(DateTime d) =>
           '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+      final online = await choreIsOnline();
+      if (!online) {
+        final cached = AssignmentCache.getAssignments(ctx.familyId);
+        if (cached != null) {
+          setState(() {
+            _assignments = cached;
+            _fromCache = true;
+          });
+          return;
+        }
+      }
+
       final raw = await Supabase.instance.client
           .from('assignments')
           .select(
-            'id, status, due_date, points_earned, task_templates(title, points), assignee:members!assignments_member_id_fkey(name)',
+            'id, status, due_date, points_earned, member_id, task_templates(title, points), assignee:members!assignments_member_id_fkey(name)',
           )
           .eq('family_id', ctx.familyId)
           .gte('due_date', dk(start))
           .lte('due_date', dk(end))
           .order('due_date');
-      setState(() {
-        _assignments = List<Map<String, dynamic>>.from((raw as List).map((e) => Map<String, dynamic>.from(e as Map)));
-      });
+      final list = List<Map<String, dynamic>>.from((raw as List).map((e) => Map<String, dynamic>.from(e as Map)));
+      await AssignmentCache.putAssignmentsJson(ctx.familyId, list);
+      setState(() => _assignments = list);
     } catch (e) {
+      final ctx = await FamilyContext.loadCurrent();
+      if (ctx != null) {
+        final cached = AssignmentCache.getAssignments(ctx.familyId);
+        if (cached != null) {
+          setState(() {
+            _assignments = cached;
+            _fromCache = true;
+            _error = 'Offline oder Serverfehler — zeige letzte zwischengespeicherte Liste.';
+          });
+          return;
+        }
+      }
       setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _markDone(String assignmentId) async {
+  Future<void> _markDone(Map<String, dynamic> row) async {
     try {
-      await Supabase.instance.client.from('assignments').update({
-        'status': 'done',
-        'completed_at': DateTime.now().toUtc().toIso8601String(),
-      }).eq('id', assignmentId);
+      await GamificationService.completeAssignment(Supabase.instance.client, row);
       await _load();
     } catch (e) {
       if (mounted) {
@@ -147,6 +174,16 @@ class _FamilyHomeScreenState extends ConsumerState<FamilyHomeScreen> {
         title: const Text('Familie'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.view_week_outlined),
+            tooltip: 'Wochenansicht',
+            onPressed: () => context.push('/week'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Einstellungen',
+            onPressed: () => context.push('/settings'),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Abmelden',
             onPressed: () async {
@@ -170,6 +207,14 @@ class _FamilyHomeScreenState extends ConsumerState<FamilyHomeScreen> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                       ),
+                    if (_fromCache)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          'Zwischengespeicherte Daten',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ),
                     if (_family == null)
                       Box(
                         style: panel,
@@ -178,11 +223,16 @@ class _FamilyHomeScreenState extends ConsumerState<FamilyHomeScreen> {
                           children: [
                             Text('Noch keine Familie', style: Theme.of(context).textTheme.titleMedium),
                             SizedBox(height: context.space(ChoreMixTokens.spaceMd)),
-                            const Text('Lege eine Familie an, um Aufgaben und Mitglieder zu verwalten.'),
+                            const Text('Lege eine Familie an oder tritt mit Einladungscode einer Familie bei.'),
                             SizedBox(height: context.space(ChoreMixTokens.spaceLg)),
                             FilledButton(
                               onPressed: _createFamily,
                               child: const Text('Familie erstellen'),
+                            ),
+                            SizedBox(height: context.space(ChoreMixTokens.spaceSm)),
+                            OutlinedButton(
+                              onPressed: () => context.push('/join'),
+                              child: const Text('Mit Einladungscode beitreten'),
                             ),
                           ],
                         ),
@@ -216,6 +266,12 @@ class _FamilyHomeScreenState extends ConsumerState<FamilyHomeScreen> {
                         },
                         icon: const Icon(Icons.person_add_alt_1),
                         label: const Text('Aufgabe zuweisen'),
+                      ),
+                      SizedBox(height: context.space(ChoreMixTokens.spaceSm)),
+                      OutlinedButton.icon(
+                        onPressed: () => context.push('/week'),
+                        icon: const Icon(Icons.calendar_view_week),
+                        label: const Text('Wochenansicht'),
                       ),
                       SizedBox(height: context.space(ChoreMixTokens.spaceLg)),
                       Row(
@@ -253,7 +309,7 @@ class _FamilyHomeScreenState extends ConsumerState<FamilyHomeScreen> {
                                   ? IconButton(
                                       tooltip: 'Erledigt',
                                       icon: const Icon(Icons.check_circle_outline),
-                                      onPressed: () => _markDone(row['id'] as String),
+                                      onPressed: () => _markDone(row),
                                     )
                                   : null,
                             ),

@@ -7,7 +7,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/constants.dart';
 import '../features/auth/screens/login_screen.dart';
+import '../features/chores/screens/week_view_screen.dart';
 import '../features/family/screens/family_home_screen.dart';
+import '../features/family/screens/join_family_screen.dart';
+import '../features/settings/screens/settings_screen.dart';
 import '../features/tasks/screens/new_assignment_screen.dart';
 import '../features/tasks/screens/task_template_form_screen.dart';
 import '../features/tasks/screens/task_templates_screen.dart';
@@ -82,6 +85,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/assignments/new',
         builder: (context, state) => const NewAssignmentScreen(),
+      ),
+      GoRoute(
+        path: '/week',
+        builder: (context, state) => const WeekViewScreen(),
+      ),
+      GoRoute(
+        path: '/join',
+        builder: (context, state) => const JoinFamilyScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
   );
