@@ -6,8 +6,13 @@ import 'package:hive_flutter/hive_flutter.dart';
 abstract final class AssignmentCache {
   static const _boxName = 'chore_assignments';
 
-  static Future<void> init() async {
-    await Hive.initFlutter();
+  /// [testRootPath]: in Widget-/Integrationstests ein temp-Verzeichnis übergeben (kein [initFlutter]).
+  static Future<void> init({String? testRootPath}) async {
+    if (testRootPath != null) {
+      Hive.init(testRootPath);
+    } else {
+      await Hive.initFlutter();
+    }
     if (Hive.isBoxOpen(_boxName)) return;
     await Hive.openBox<String>(_boxName);
   }
