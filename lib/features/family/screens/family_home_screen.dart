@@ -54,7 +54,9 @@ class _FamilyHomeScreenState extends ConsumerState<FamilyHomeScreen> {
           '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       final raw = await Supabase.instance.client
           .from('assignments')
-          .select('id, status, due_date, points_earned, task_templates(title, points), members(name)')
+          .select(
+            'id, status, due_date, points_earned, task_templates(title, points), assignee:members!assignments_member_id_fkey(name)',
+          )
           .eq('family_id', ctx.familyId)
           .gte('due_date', dk(start))
           .lte('due_date', dk(end))
@@ -124,8 +126,8 @@ class _FamilyHomeScreenState extends ConsumerState<FamilyHomeScreen> {
     return null;
   }
 
-  Map<String, dynamic>? _mem(Map<String, dynamic> row) {
-    final m = row['members'];
+  Map<String, dynamic>? _assignee(Map<String, dynamic> row) {
+    final m = row['assignee'];
     if (m is Map) return Map<String, dynamic>.from(m);
     return null;
   }
@@ -229,7 +231,7 @@ class _FamilyHomeScreenState extends ConsumerState<FamilyHomeScreen> {
                       else
                         ..._assignments.map((row) {
                           final tpl = _tpl(row);
-                          final mem = _mem(row);
+                          final mem = _assignee(row);
                           final title = tpl?['title'] as String? ?? 'Aufgabe';
                           final pts = (row['points_earned'] as int? ?? 0) > 0
                               ? row['points_earned'] as int
