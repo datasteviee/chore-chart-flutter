@@ -9,4 +9,13 @@ abstract final class ChoreEnv {
     defaultValue: 'https://sb.steviee.dev',
   );
   static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+  static const revenueCatApiKeyIOS = String.fromEnvironment(
+    'REVENUECAT_API_KEY_IOS',
+    defaultValue: 'appl_guNMCweirCHMZgDxUlOAvmPznHF',
+  );
+  static const revenueCatApiKeyAndroid = String.fromEnvironment('REVENUECAT_API_KEY_ANDROID');
+  static const revenueCatEntitlement = String.fromEnvironment(
+    'REVENUECAT_ENTITLEMENT',
+    defaultValue: 'Chore Chart: Smart Family Task Planner Pro',
+  );
 }

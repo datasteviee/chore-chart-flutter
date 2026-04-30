@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'core/chore_notifications.dart';
 import 'core/constants.dart';
+import 'core/premium_service.dart';
 import 'data/local/assignment_cache.dart';
 
 /// Gemeinsame Initialisierung für [main] und Integrationstests.
@@ -30,6 +31,8 @@ Future<void> bootstrapChoreApp({
       anonKey: ChoreEnv.supabaseAnonKey,
     );
   }
+
+  await PremiumService.init();
 }
 
 void runChoreApp() {

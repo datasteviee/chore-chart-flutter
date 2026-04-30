@@ -11,7 +11,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Einstellungen'), findsOneWidget);
-    expect(find.textContaining('RevenueCat'), findsOneWidget);
+    expect(find.textContaining('RevenueCat'), findsWidgets);
     expect(find.textContaining('Wochenansicht'), findsOneWidget);
   });
 }

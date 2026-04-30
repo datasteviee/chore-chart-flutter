@@ -78,11 +78,18 @@ class _WeekViewScreenState extends ConsumerState<WeekViewScreen> {
 
   Future<void> _autoFill() async {
     if (_ctx == null) return;
+    await PremiumService.refresh();
     if (!PremiumService.canUseRotationEngine) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Rotation ist mit aktivem Familien-Abo freigeschaltet (Stub: FORCE_PREMIUM).')),
-      );
-      return;
+      await PremiumService.presentPaywallIfNeeded();
+      if (!mounted) return;
+      await PremiumService.refresh();
+      if (!PremiumService.canUseRotationEngine) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Rotation ist mit aktivem Familien-Abo freigeschaltet.')),
+        );
+        return;
+      }
     }
     setState(() => _error = null);
     try {
